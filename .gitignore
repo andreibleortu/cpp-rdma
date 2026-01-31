@@ -1,18 +1,1 @@
-# Build directories
-/bin/
-/lib/
-/obj/
-
-# Editor files
-*.swp
-*~
 .DS_Store
-.vscode/
-.idea/
-
-# Build artifacts
-*.o
-*.so
-*.a
-rdma
-rdma-example
