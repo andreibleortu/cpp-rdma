@@ -1,1 +1,13 @@
+# Build artifacts
+bin/
+lib/
+obj/
+
+# OS files
 .DS_Store
+
+# Editor files
+*.swp
+*~
+.vscode/
+.idea/

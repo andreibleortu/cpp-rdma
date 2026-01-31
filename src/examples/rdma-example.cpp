@@ -30,8 +30,8 @@ void server_function() {
         std::signal(SIGINT, signal_handler);
         std::signal(SIGTERM, signal_handler);
         
-        // Create a server connection using write mode
-        RDMAConnection server(MODE_WRITE);
+        // Create a server connection using read/write mode
+        RDMAConnection server(MODE_RW);
         
         // Allocate and initialize a buffer for an integer array
         const size_t array_size = 10;
@@ -98,7 +98,7 @@ void client_function(const std::string& server_name) {
         std::cout << "Connecting to RDMA server: " << server_name << std::endl;
         
         // Create a client connection
-        RDMAConnection client(server_name, MODE_WRITE);
+        RDMAConnection client(server_name, MODE_RW);
         
         // Get remote info obtained during connection setup
         qp_info_t remote_info = client.get_remote_mr_info();

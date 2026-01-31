@@ -11,10 +11,8 @@
  */
 
 #include "rdma/common.h"
-#include "rdma/send_receive.h"
 #include "rdma/rdma_write.h"
 #include "rdma/rdma_read.h"
-#include "rdma/lambda.h"
 
 /*******************************************************************************
  * Constants and Configuration
@@ -193,14 +191,8 @@ rdma_status_t init_resources(struct config_t *config, rdma_mode_t mode)
         return RDMA_ERR_RESOURCE;
     }
 
-    // Determine access flags based on mode
-    int access_flags = IBV_ACCESS_LOCAL_WRITE;
-    switch (mode) {
-    case MODE_WRITE: access_flags |= IBV_ACCESS_REMOTE_WRITE; break;
-    case MODE_READ: access_flags |= IBV_ACCESS_REMOTE_READ; break;
-    case MODE_SEND_RECV: break;
-    case MODE_LAMBDA: access_flags |= IBV_ACCESS_REMOTE_WRITE; break;
-    }
+    // Determine access flags - always enable both read and write
+    int access_flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ;
 
     // Register Memory Region
     config->mr = ibv_reg_mr(config->pd, config->buf, MAX_BUFFER_SIZE, access_flags);
@@ -447,13 +439,8 @@ void connect_qps(struct config_t *config, const char *server_name, struct qp_inf
         memcpy(remote_info, &remote_qp_info, sizeof(struct qp_info_t));
     }
 
-    // Set appropriate access flags based on mode
-    int access_flags = IBV_ACCESS_LOCAL_WRITE;
-    switch (mode) {
-    case MODE_WRITE: access_flags |= IBV_ACCESS_REMOTE_WRITE; break;
-    case MODE_READ: access_flags |= IBV_ACCESS_REMOTE_READ; break;
-    default: break;
-    }
+    // Set access flags - always enable both read and write
+    int access_flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ;
 
     // Transition QP states
     modify_qp_to_init(config->qp, access_flags);
@@ -468,9 +455,9 @@ void connect_qps(struct config_t *config, const char *server_name, struct qp_inf
 /**
  * @brief Post an RDMA operation
  * @param config RDMA configuration
- * @param op Operation type (send/write/read)
+ * @param op Operation type (write/read)
  * @param data Data buffer (NULL for read)
- * @param remote_info Remote QP info (NULL for send)
+ * @param remote_info Remote QP info
  * @param length Data length in bytes
  */
 void post_operation(
@@ -486,12 +473,6 @@ void post_operation(
 
     // Configure operation-specific parameters
     switch (op) {
-    case OP_SEND:
-        if (data)
-            memcpy(config->buf, data, length);
-        wr.opcode = IBV_WR_SEND;
-        break;
-
     case OP_WRITE:
         if (data)
             memcpy(config->buf, data, length);
@@ -607,76 +588,3 @@ rdma_status_t setup_rdma_connection(struct config_t *config, const char *server_
     return RDMA_SUCCESS;
 }
 
-/**
- * @brief Run RDMA server in specified mode
- * @param mode RDMA operation mode
- * @return 0 on success, -1 on failure
- */
-int run_server(rdma_mode_t mode)
-{
-    int result;
-    struct config_t config = {};
-    
-    if (setup_rdma_connection(&config, NULL, mode, NULL) != RDMA_SUCCESS) {
-        return -1;
-    }
-    
-    switch (mode) {
-        case MODE_WRITE:
-            result = rw_run_server();
-            break;
-        case MODE_READ:
-            result = rd_run_server();
-            break;
-        case MODE_SEND_RECV:
-            result = sr_run_server();
-            break;
-        case MODE_LAMBDA:
-            result = lambda_run_server();
-            break;
-        default:
-            fprintf(stderr, "Invalid mode\n");
-            result = -1;
-    }
-    
-    cleanup_resources(&config);
-    return result;
-}
-
-/**
- * @brief Run RDMA client in specified mode
- * @param server_name Server hostname
- * @param mode RDMA operation mode
- * @return 0 on success, -1 on failure
- */
-int run_client(const char *server_name, rdma_mode_t mode)
-{
-    int result;
-    struct config_t config = {};
-    struct qp_info_t remote_info;
-    
-    if (setup_rdma_connection(&config, server_name, mode, &remote_info) != RDMA_SUCCESS) {
-        return -1;
-    }
-    
-    switch (mode) {
-        case MODE_WRITE:
-            result = rw_run_client(server_name);
-            break;
-        case MODE_READ:
-            result = rd_run_client(server_name);
-            break;
-        case MODE_SEND_RECV:
-            result = sr_run_client(server_name);
-            break;
-        case MODE_LAMBDA:
-            result = lambda_run_client(server_name);
-            break;
-        default:
-            fprintf(stderr, "Invalid mode\n");
-            result = -1;
-    }
-    
-    cleanup_resources(&config);
-    return result;
-}

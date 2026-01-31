@@ -1,93 +1,63 @@
 # cpp-rdma
 
-A high-performance RDMA (Remote Direct Memory Access) library providing both C and C++ interfaces for efficient network communications.
+Student showcase project exploring RDMA with a small C core and a "RDMA-ified" C++ layer that aims to feel like normal C++ usage via operator overloading.
 
-## Overview
+## Intent
 
-`cpp-rdma` enables applications to leverage RDMA capabilities for high-throughput, low-latency communications by providing:
+This repo is meant to:
 
-- Comprehensive C API for direct RDMA control
-- Modern C++ wrappers with intuitive abstractions
-- Support for all core RDMA operations (read, write, send/receive)
-- Memory registration and management utilities
-- Thread-safe resource handling
+- Demonstrate core RDMA concepts (QP setup, MR registration, read/write)
+- Provide a minimal C API for low-level control
+- Layer C++ wrappers that make remote memory feel like local objects
 
-The library is built with performance in mind, allowing direct memory access between network-connected systems while bypassing CPU involvement in data transfers.
+It is not a production-grade RDMA library. The focus is clarity and learning, not full correctness or safety in every edge case.
 
-## Features
+## What It Provides
 
-- **Multiple Communication Modes**:
-  - Two-sided send/receive (traditional request-response pattern)
-  - One-sided RDMA read (direct remote memory access)
-  - One-sided RDMA write (direct remote memory writes)
-  
-- **C++ Abstractions**:
-  - `RDMAConnection` - Connection management with RAII principles
-  - `RDMAVector` - Remote array abstraction with transparent access
-  - `RDMAVariable` - Remote variable with operator overloading
-
-- **Clean Resource Management**:
-  - Automatic cleanup with RAII in C++ interface
-  - Signal handlers for graceful termination
-  - Comprehensive error handling
+- **C++ abstractions** that make remote RDMA memory feel like local objects:
+  - `RDMAConnection` for connection setup/cleanup
+  - `RDMAVector` for a remote `int` array
+  - `RDMAVariable<T>` and type aliases like `RDMAInt`, `RDMADouble` for remote scalars
+- **C core layer** providing underlying RDMA infrastructure (device discovery, QP setup, verbs)
 
 ## Architecture
 
-The project is organized into distinct layers:
-
-1. **Core Layer** - Low-level RDMA primitives and resource management
-2. **Mode-Specific Layer** - Implementation of different RDMA operations
-3. **C++ Wrapper Layer** - Object-oriented abstractions over the C API
-4. **Examples** - Demonstration applications showing library usage
-
-> **Note**: The library includes a Lambda mode (for remote function execution) which is a remnant of an older project. This functionality is largely experimental and not fully integrated into the current design.
+1. **Core (C)**: device discovery, QP setup, MR registration (read+write), and verbs calls
+2. **C++ layer**: thin wrapper with operator overloading for natural syntax
+3. **Example**: `rdma-example.cpp` demonstrating the abstractions
 
 ## Project Structure
 
 ```
 .
 ├── include/                # Public header files
-│   ├── rdma/               # C API headers
-│   │   ├── common.h        # Core RDMA definitions
-│   │   ├── send_receive.h  # Two-sided communication
-│   │   ├── rdma_read.h     # One-sided read operations
-│   │   ├── rdma_write.h    # One-sided write operations
-│   │   └── lambda.h        # Experimental remote execution
-│   └── rdmacpp/           # C++ API headers
+│   ├── rdma/               # C layer headers
+│   │   └── common.h        # Core RDMA definitions and verbs wrappers
+│   └── rdmacpp/           # C++ abstractions
 │       ├── rdma_connection.hpp   # Connection management
 │       ├── rdma-vector.hpp       # Remote vector abstraction
 │       └── rdma-variable.hpp     # Remote variable abstraction
 ├── src/                   # Implementation files
 │   ├── core/              # Core C implementation
-│   │   ├── common.c       # Common RDMA operations
-│   │   └── rdma.c         # Main program entry point
+│   │   └── common.c       # RDMA resource management and verbs
 │   ├── cpp/               # C++ wrappers
 │   │   ├── rdma_connection.cpp
 │   │   └── rdma-vector.cpp
-│   ├── modes/             # RDMA operation modes
-│   │   ├── lambda/        # Remote function execution (experimental)
-│   │   ├── read/          # RDMA read operations
-│   │   ├── send-recv/     # Two-sided communication
-│   │   └── write/         # RDMA write operations
 │   └── examples/          # Example applications
-│       ├── rdma-example.cpp   # C++ API example
-│       └── lambda-run.c       # Lambda mode example
+│       └── rdma-example.cpp   # Showcase of C++ abstractions
 ├── bin/                   # Output directory for executables
 ├── lib/                   # Output directory for libraries
 ├── obj/                   # Output directory for object files
 ├── LICENSE                # GNU GPL v3 license
 ├── Makefile               # Build system
-├── migrate.sh             # Project structure migration script
 └── README.md              # This file
 ```
 
 ## Requirements
 
-- Linux or Unix-based operating system
-- RDMA-capable hardware (Mellanox/NVIDIA ConnectX, etc.)
-- RDMA software stack (OFED or equivalent)
+- Linux or Unix-based OS with libibverbs
+- RDMA-capable hardware and RDMA stack (OFED or equivalent)
 - GCC with C++11 support
-- Libibverbs development package
 
 ## Building
 
@@ -95,69 +65,42 @@ The project is organized into distinct layers:
 # Install dependencies (Ubuntu/Debian example)
 sudo apt-get install libibverbs-dev
 
-# Build everything
+# Build
 make
 
-# Build only the C library
-make rdma
-
-# Build C++ wrappers and examples
-make rdmacpp
+# This creates bin/rdma-example (and bin/rdma as a symlink)
 
 # Clean build artifacts
 make clean
 ```
 
-## Usage Examples
-
-### C API Example
-
-```c
-#include "rdma/common.h"
-#include "rdma/rdma_write.h"
-
-int main() {
-    // Server mode (for a write server)
-    if (run_server(MODE_WRITE) != 0) {
-        fprintf(stderr, "Failed to run server\n");
-        return 1;
-    }
-    
-    // Client mode (connecting to a write server)
-    if (run_client("server_hostname", MODE_WRITE) != 0) {
-        fprintf(stderr, "Failed to connect to server\n");
-        return 1;
-    }
-    
-    return 0;
-}
-```
-
-### C++ API Example
+## Usage Example
 
 ```cpp
 #include <iostream>
 #include "rdmacpp/rdma_connection.hpp"
 #include "rdmacpp/rdma-variable.hpp"
+#include "rdmacpp/rdma-vector.hpp"
 
 int main() {
     try {
-        // Create a server connection
-        RDMAConnection server(MODE_WRITE);
+        // Server side
+        RDMAConnection server(MODE_RW);
         
-        // In client code:
-        RDMAConnection client("server_hostname", MODE_WRITE);
+        // Client side
+        RDMAConnection client("server_hostname", MODE_RW);
         
-        // Get remote memory region info
+        // Get remote memory region info (from connection negotiation)
         qp_info_t remote_info = client.get_remote_mr_info();
         
-        // Create an RDMA vector and variable
-        RDMAVector<int> vec(&client, remote_info.addr, remote_info.rkey, 10);
-        RDMAVariable<int> counter(&client, remote_info.addr + 40, remote_info.rkey);
+        // Create RDMA-ified variables pointing to remote memory
+        RDMAVector vec(&client, remote_info.addr, remote_info.rkey, 10);
+        RDMAInt counter(&client, remote_info.addr + 40, remote_info.rkey);
         
-        // Use them like regular C++ objects
-        vec[3] = 42;
-        counter += 10;
+        // Use them like regular C++ objects - reads and writes work transparently
+        vec[3] = 42;        // RDMA write
+        int val = vec[3];   // RDMA read
+        counter += 10;      // RDMA read + write
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
@@ -168,25 +111,24 @@ int main() {
 }
 ```
 
-## Library Modes
+Run the example:
+```bash
+# On the server
+./bin/rdma server
 
-The library includes several RDMA operation modes:
+# On the client
+./bin/rdma client <server_hostname>
+```
 
-### Two-Sided Send/Receive
+## Notes and Limitations
 
-Traditional RDMA communication requiring active participation from both sides. Good for request-response patterns with small messages.
-
-### One-Sided RDMA Read
-
-Allows direct reading from remote memory without involving the remote CPU. Excellent for data retrieval without disturbing the remote node.
-
-### One-Sided RDMA Write
-
-Enables direct writing to remote memory without involving the remote CPU. Perfect for updates and data distribution.
-
-### Lambda Mode (Experimental)
-
-Remnant from an older project, provides a framework for remote function execution. This mode is currently experimental and not fully integrated with the rest of the library.
+- Remote "variables" are just offsets into a single registered buffer on the server.
+- The buffer size is fixed at `MAX_BUFFER_SIZE` (4096 bytes), so all variables must fit within it.
+- `RDMAVariable` reads use RDMA READ and writes use RDMA WRITE.
+- All connections use `MODE_RW` (both read and write enabled).
+- The examples assume a shared understanding of remote memory layout (e.g., offsets).
+- `RDMAVector` currently targets `int` elements only.
+- The code is intentionally compact and does not aim to cover every production safety case.
 
 ## License
 

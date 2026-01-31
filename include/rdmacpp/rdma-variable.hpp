@@ -113,4 +113,10 @@ public:
     }
 };
 
+// Convenience remote types for common primitives
+using RDMAInt = RDMAVariable<int>;
+using RDMALong = RDMAVariable<long>;
+using RDMAUInt64 = RDMAVariable<uint64_t>;
+using RDMADouble = RDMAVariable<double>;
+
 #endif // RDMA_VARIABLE_HPP

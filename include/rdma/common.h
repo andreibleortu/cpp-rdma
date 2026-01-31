@@ -72,23 +72,18 @@
 #define CHECK_NULL(ptr, msg) do { if (!(ptr)) { fprintf(stderr, "%s\n", msg); return RDMA_ERR_RESOURCE; } } while(0)
 
 /**
- * RDMA Operation Modes Enumeration
- * Defines the supported RDMA operation types:
- * MODE_SEND_RECV: Traditional two-sided communication
- * MODE_WRITE: One-sided RDMA write operations
- * MODE_READ: One-sided RDMA read operations
- * MODE_LAMBDA: Custom lambda operation mode for advanced operations
+ * RDMA Operation Mode
+ * All connections support both remote read and write
  */
-typedef enum rdma_mode { MODE_SEND_RECV, MODE_WRITE, MODE_READ, MODE_LAMBDA } rdma_mode_t;
+typedef enum rdma_mode { MODE_RW } rdma_mode_t;
 
 /**
  * RDMA Operation Types
  * Used to specify the type of RDMA operation when posting Work Requests:
- * OP_SEND: Regular send operation (requires receive on remote side)
  * OP_WRITE: RDMA write operation (one-sided)
  * OP_READ: RDMA read operation (one-sided)
  */
-typedef enum rdma_op { OP_SEND, OP_WRITE, OP_READ } rdma_op_t;
+typedef enum rdma_op { OP_WRITE, OP_READ } rdma_op_t;
 
 /**
  * RDMA Status Codes
@@ -184,7 +179,7 @@ void connect_qps(struct config_t *config, const char *server_name, struct qp_inf
 /* RDMA Operation Functions */
 /**
  * RDMA Operation Functions
- * post_operation: Posts RDMA operations (send/write/read)
+ * post_operation: Posts RDMA operations (write/read)
  * wait_completion: Waits for operation completion
  * post_receive: Posts receive work request
  * @param config: RDMA configuration
@@ -200,20 +195,16 @@ void post_receive(struct config_t *config);
  * @brief Posts an RDMA operation
  *
  * @param config RDMA configuration structure
- * @param op Type of operation (send/write/read)
+ * @param op Type of operation (write/read)
  * @param data Data buffer to send (NULL for read operations)
- * @param remote_info Remote QP information (NULL for send operations)
+ * @param remote_info Remote QP information
  * @param length Length of data to transfer
  *
  * Posts a Work Request (WR) for the specified RDMA operation.
- * Handles both two-sided (send/recv) and one-sided (read/write) operations.
+ * Handles one-sided (read/write) operations.
  */
 void post_operation(struct config_t *config, rdma_op_t op, const char *data,
                    const struct qp_info_t *remote_info, size_t length);
-
-// Run functions for client/server
-int run_client(const char *server_name, rdma_mode_t mode);
-int run_server(rdma_mode_t mode);
 
 /* Signal Handling */
 extern struct config_t *global_config;
