@@ -48,7 +48,7 @@ It is not a production-grade RDMA library. The focus is clarity and learning, no
 ├── bin/                   # Output directory for executables
 ├── lib/                   # Output directory for libraries
 ├── obj/                   # Output directory for object files
-├── LICENSE                # GNU GPL v3 license
+├── LICENSE                # GNU AGPL v3 license
 ├── Makefile               # Build system
 └── README.md              # This file
 ```
@@ -132,4 +132,4 @@ Run the example:
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
